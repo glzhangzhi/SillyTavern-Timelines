@@ -154,10 +154,50 @@ export function closeOpenDrawers() {
 }
 
 /**
+ * Logs a diagnostic snapshot of timeline-related DOM elements still in the document.
+ * Use this to debug leftover elements that may block the ST UI.
+ *
+ * @param {string} label - A label describing when this snapshot was taken.
+ */
+export function logTimelinesDOMState(label) {
+    const tippyRoots = document.querySelectorAll('[data-tippy-root]');
+    const tippyBoxes = document.querySelectorAll('.tippy-box');
+    const modal = document.getElementById('timelinesModal');
+    const modalVisible = modal ? (modal.style.display !== 'none' && modal.offsetParent !== null) : false;
+    const modalParent = modal ? modal.parentElement?.className : 'N/A';
+
+    // Check for any high z-index elements that might overlay
+    const allFixed = document.querySelectorAll('[style*="position: fixed"], [style*="position:fixed"]');
+    const highZElements = [];
+    allFixed.forEach(el => {
+        const z = parseInt(window.getComputedStyle(el).zIndex);
+        if (z > 1000 && el.id !== 'timelinesModal') {
+            highZElements.push({ tag: el.tagName, id: el.id, class: el.className, zIndex: z, display: el.style.display });
+        }
+    });
+
+    console.info(`[Timelines DEBUG] === ${label} ===`);
+    console.info(`[Timelines DEBUG] Modal exists: ${!!modal}, visible: ${modalVisible}, parent: ${modalParent}`);
+    console.info(`[Timelines DEBUG] [data-tippy-root] elements in DOM: ${tippyRoots.length}`);
+    tippyRoots.forEach((root, i) => {
+        const box = root.querySelector('.tippy-box');
+        const state = box ? box.getAttribute('data-state') : 'N/A';
+        const rect = root.getBoundingClientRect();
+        const style = window.getComputedStyle(root);
+        console.info(`[Timelines DEBUG]   tippy-root[${i}]: state=${state}, visible=${state === 'visible'}, pointer-events=${style.pointerEvents}, rect=(${Math.round(rect.x)},${Math.round(rect.y)},${Math.round(rect.width)}x${Math.round(rect.height)}), has_tippy=${!!root._tippy}`);
+    });
+    if (highZElements.length > 0) {
+        console.info(`[Timelines DEBUG] High z-index fixed elements:`, highZElements);
+    }
+    console.info(`[Timelines DEBUG] === end ${label} ===`);
+}
+
+/**
  * Close the modal with ID "timelinesModal".
  * It ensures the modal is returned to its original position in the DOM when closed.
  */
 export function closeModal() {
+    console.info('[Timelines DEBUG] closeModal() called');
     let modal = document.getElementById('timelinesModal');
     if (!modal) {
         console.error('Modal not found!');
@@ -167,6 +207,7 @@ export function closeModal() {
     // Append the modal back to its original parent (to store it while closed)
     document.querySelector('.timelines-modal-storage').appendChild(modal);
     modal.style.display = 'none';
+    console.info('[Timelines DEBUG] closeModal() done');
 }
 
 /**
@@ -174,16 +215,21 @@ export function closeModal() {
  */
 export function closeTippy() {
     let tippyBoxes = document.querySelectorAll('.tippy-box');
-    tippyBoxes.forEach(box => {
+    console.info(`[Timelines DEBUG] closeTippy() called, found ${tippyBoxes.length} tippy-box elements`);
+    tippyBoxes.forEach((box, i) => {
         let parent = box.parentElement;
         if (parent && parent._tippy) {  // `_tippy` is stored on the graph element
+            console.info(`[Timelines DEBUG]   tippy-box[${i}]: destroying via _tippy`);
             parent._tippy.destroy();
             parent._tippy = null;
         } else if (parent) {
             // Orphaned tippy DOM element (reference already nulled) — remove it
+            console.info(`[Timelines DEBUG]   tippy-box[${i}]: orphaned, removing parent from DOM`);
             parent.remove();
         }
     });
+    const remaining = document.querySelectorAll('[data-tippy-root]');
+    console.info(`[Timelines DEBUG] closeTippy() done, [data-tippy-root] remaining: ${remaining.length}`);
 }
 
 /**

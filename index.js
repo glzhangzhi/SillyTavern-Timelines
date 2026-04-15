@@ -61,7 +61,7 @@ loadFile(`${extensionFolderPath}cytoscape-context-menus.min.js`, 'js');
 import { extension_settings, getContext } from '../../../extensions.js';
 import { event_types, eventSource, saveSettingsDebounced } from '../../../../script.js';
 
-import { navigateToMessage, closeModal, closeTippy, handleModalDisplay, closeOpenDrawers } from './tl_utils.js';
+import { navigateToMessage, closeModal, closeTippy, handleModalDisplay, closeOpenDrawers, logTimelinesDOMState } from './tl_utils.js';
 import { setupStylesAndData, highlightElements, restoreElements } from './tl_style.js';
 import { fetchData, prepareData } from './tl_node_data.js';
 import { toggleGraphOrientation, highlightNodesByQuery, makeQueryFragments, setGraphOrientationBasedOnViewport, getGraphOrientation } from './tl_graph.js';
@@ -168,12 +168,14 @@ let isTapTippyVisible = false;  // and whether it's open
  * Close the node full info panel, if it exists.
  */
 function closeTapTippy() {
+    console.info('[Timelines DEBUG] closeTapTippy() called, activeTapTippy exists:', !!activeTapTippy);
     if (activeTapTippy) {
         activeTapTippy.destroy();
         activeTapTippy = null;
         isTapTippyVisible = false;
         currentlyOpenNode = null;
     }
+    console.info('[Timelines DEBUG] closeTapTippy() done');
 }
 
 /**
@@ -594,6 +596,8 @@ function makeTapTippy(ele) {
                     navigateBtn.textContent = sessionName;
                     navigateBtn.title = `Find and open this message in "${sessionName}".`;  // TODO: data-i18n?
                     navigateBtn.addEventListener('click', function () {
+                        console.info('[Timelines DEBUG] Navigate button clicked for:', file_name, 'messageId:', messageId);
+                        logTimelinesDOMState('navigateBtn BEFORE cleanup');
                         if (ele.data('isSwipe')) {
                             navigateToMessage(file_name, messageId, ele.data('swipeId'));
                         } else {
@@ -601,8 +605,10 @@ function makeTapTippy(ele) {
                         }
                         closeModal();
                         tip.destroy();  // Destroy this full info panel and remove its DOM elements
+                        closeTippy();  // Destroy all remaining hover tooltips
                         resetLegendHighlight(theCy);  // Reset the legend highlight state
                         restoreElements(theCy);  // Remove remaining highlights, if any (from text search)
+                        logTimelinesDOMState('navigateBtn AFTER cleanup');
                     });
                     // Without creating a branch, swipes are available only at the last message of a chat.
                     if (isSwipe && !isLastMessage) {
@@ -619,14 +625,18 @@ function makeTapTippy(ele) {
                     branchBtn.classList.add('widthNatural');
                     branchBtn.title = `Create a new branch from "${sessionName}", at this message, and open it.`;  // TODO: data-i18n?
                     branchBtn.addEventListener('click', function () {
+                        console.info('[Timelines DEBUG] Branch button clicked for:', file_name, 'messageId:', messageId);
+                        logTimelinesDOMState('branchBtn BEFORE cleanup');
                         if (ele.data('isSwipe'))
                             navigateToMessage(file_name, messageId, ele.data('swipeId'), true);
                         else
                             navigateToMessage(file_name, messageId, null, true);
                         closeModal();
                         tip.destroy();  // Destroy this full info panel and remove its DOM elements
+                        closeTippy();  // Destroy all remaining hover tooltips
                         resetLegendHighlight(theCy);  // Reset the legend highlight state
                         restoreElements(theCy);  // Remove remaining highlights, if any (from text search)
+                        logTimelinesDOMState('branchBtn AFTER cleanup');
                     });
                     btnContainer.appendChild(branchBtn);
 
@@ -1355,6 +1365,8 @@ function setupEventHandlers(cy, nodeData) {
     // Double-tap a node to DWIM: find first matching message and navigate to it if possible, create a branch if absolutely necessary
     cy.on('dbltap', 'node', function (evt) {
         const node = evt.target;
+        console.info('[Timelines DEBUG] dbltap on node:', node.data('id'));
+        logTimelinesDOMState('dbltap BEFORE cleanup');
 
         // Auto-pick first chat file that has this message
         let chat_sessions = node.data('chat_sessions');
@@ -1378,11 +1390,15 @@ function setupEventHandlers(cy, nodeData) {
         } else {
             navigateToMessage(file_name, messageId);
         }
+        console.info('[Timelines DEBUG] dbltap: calling closeModal');
         closeModal();
+        console.info('[Timelines DEBUG] dbltap: calling closeTapTippy');
         closeTapTippy();
+        console.info('[Timelines DEBUG] dbltap: calling closeTippy');
         closeTippy();
         resetLegendHighlight(cy);  // Reset the legend highlight state
         restoreElements(cy);  // Remove remaining highlights, if any (from text search, and edge highlighting)
+        logTimelinesDOMState('dbltap AFTER cleanup');
     });
 
     // Long-tap a node to reveal/hide related swipe nodes
@@ -1438,7 +1454,7 @@ function setupEventHandlers(cy, nodeData) {
         }
 
         if (node._tippy) {
-            node._tippy.hide();
+            node._tippy.destroy();
             node._tippy = null;
         }
     });
@@ -1845,6 +1861,8 @@ function processTimelinesHotkeys(event) {
     }
 
     if (event.key === 'Escape') {
+        console.info('[Timelines DEBUG] Escape key pressed');
+        logTimelinesDOMState('Escape BEFORE cleanup');
         closeModal();
         closeTapTippy();
         closeTippy();
@@ -1852,5 +1870,6 @@ function processTimelinesHotkeys(event) {
             resetLegendHighlight(theCy);  // Reset the legend highlight state
             restoreElements(theCy);  // Remove remaining highlights, if any (from text search, and edge highlighting)
         }
+        logTimelinesDOMState('Escape AFTER cleanup');
     }
 }
