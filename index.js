@@ -1249,6 +1249,7 @@ function setupEventHandlers(cy, nodeData) {
         else {
             document.getElementById('legendDiv').style.display = 'none';
         }
+        console.info('[Timelines DEBUG] cy.ready: about to call closeOpenDrawers');
         closeOpenDrawers();
     });
 
@@ -1618,6 +1619,7 @@ async function onTimelineButtonClick() {
         renderCytoscapeDiagram(lastTimelineData);  // after this, the Cytoscape instance `theCy` is alive
         toggleSwipes(theCy, extension_settings.timeline.autoExpandSwipes);
     }
+    console.info('[Timelines DEBUG] onTimelineButtonClick: about to call closeOpenDrawers');
     closeOpenDrawers();
 
     // Let the window layout settle itself for 500 ms before trying to zoom

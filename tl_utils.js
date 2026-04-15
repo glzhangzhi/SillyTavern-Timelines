@@ -144,6 +144,14 @@ export async function navigateToMessage(chatSessionName, messageId, swipeId = -1
 //   - Upon returning from `navigateToMessage` (`tl_utils.js`)
 export function closeOpenDrawers() {
     var openDrawers = $('.openDrawer').not('.pinnedOpen');
+    var openIcons = $('.openIcon');
+    console.info(`[Timelines DEBUG] closeOpenDrawers() called: found ${openDrawers.length} openDrawer(s), ${openIcons.length} openIcon(s)`);
+    openDrawers.each(function(i) {
+        console.info(`[Timelines DEBUG]   openDrawer[${i}]: id=${this.id}, classes=${this.className}`);
+    });
+    openIcons.each(function(i) {
+        console.info(`[Timelines DEBUG]   openIcon[${i}]: id=${this.id}, classes=${this.className}`);
+    });
 
     openDrawers.addClass('resizing').slideToggle(200, 'swing', function () {
         $(this).closest('.drawer-content').removeClass('resizing');
@@ -151,6 +159,7 @@ export function closeOpenDrawers() {
 
     $('.openIcon').toggleClass('closedIcon openIcon');
     openDrawers.toggleClass('closedDrawer openDrawer');
+    console.info('[Timelines DEBUG] closeOpenDrawers() done');
 }
 
 /**
@@ -253,8 +262,11 @@ export function handleModalDisplay() {
 
     // The "close" button
     closeBtn.onclick = function () {
+        console.info('[Timelines DEBUG] Close button clicked');
+        logTimelinesDOMState('close button BEFORE cleanup');
         closeModal();
         closeTippy();
+        logTimelinesDOMState('close button AFTER cleanup');
     };
 
     // When clicked outside
@@ -266,8 +278,11 @@ export function handleModalDisplay() {
     // See e.g. https://wesbos.com/javascript/06-serious-practice-exercises/click-outside-modal
     modal.onclick = function (event) {
         if (event.target == modal) {  // outer div itself clicked (as opposed to something inside it clicked)
+            console.info('[Timelines DEBUG] Clicked outside modal');
+            logTimelinesDOMState('click-outside BEFORE cleanup');
             closeModal();
             closeTippy();
+            logTimelinesDOMState('click-outside AFTER cleanup');
         }
     };
 
