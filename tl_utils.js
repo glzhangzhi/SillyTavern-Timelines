@@ -124,7 +124,11 @@ export async function navigateToMessage(chatSessionName, messageId, swipeId = -1
             }
         }
     } finally {
-        closeOpenDrawers();
+        // NOTE: We intentionally do NOT call closeOpenDrawers() here.
+        // The caller is responsible for closing the timeline modal.
+        // Calling closeOpenDrawers() after openCharacterChat() re-renders
+        // the ST UI can corrupt the drawer/icon toggle state, preventing
+        // the user from opening menus (e.g. the Extensions menu).
     }
 }
 
@@ -166,15 +170,18 @@ export function closeModal() {
 }
 
 /**
- * Hides the Tippy tooltip. Used when closing the timeline view.
+ * Destroys all Tippy tooltips. Used when closing the timeline view.
  */
 export function closeTippy() {
     let tippyBoxes = document.querySelectorAll('.tippy-box');
     tippyBoxes.forEach(box => {
         let parent = box.parentElement;
         if (parent && parent._tippy) {  // `_tippy` is stored on the graph element
-            parent._tippy.hide();
+            parent._tippy.destroy();
             parent._tippy = null;
+        } else if (parent) {
+            // Orphaned tippy DOM element (reference already nulled) — remove it
+            parent.remove();
         }
     });
 }

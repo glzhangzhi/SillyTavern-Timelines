@@ -169,7 +169,7 @@ let isTapTippyVisible = false;  // and whether it's open
  */
 function closeTapTippy() {
     if (activeTapTippy) {
-        activeTapTippy.hide();
+        activeTapTippy.destroy();
         activeTapTippy = null;
         isTapTippyVisible = false;
         currentlyOpenNode = null;
@@ -600,7 +600,7 @@ function makeTapTippy(ele) {
                             navigateToMessage(file_name, messageId);
                         }
                         closeModal();
-                        tip.hide();  // Hide this full info panel
+                        tip.destroy();  // Destroy this full info panel and remove its DOM elements
                         resetLegendHighlight(theCy);  // Reset the legend highlight state
                         restoreElements(theCy);  // Remove remaining highlights, if any (from text search)
                     });
@@ -624,7 +624,7 @@ function makeTapTippy(ele) {
                         else
                             navigateToMessage(file_name, messageId, null, true);
                         closeModal();
-                        tip.hide();  // Hide this full info panel
+                        tip.destroy();  // Destroy this full info panel and remove its DOM elements
                         resetLegendHighlight(theCy);  // Reset the legend highlight state
                         restoreElements(theCy);  // Remove remaining highlights, if any (from text search)
                     });
