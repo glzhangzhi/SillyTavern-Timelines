@@ -134,79 +134,26 @@ export async function navigateToMessage(chatSessionName, messageId, swipeId = -1
 
 /**
  * Closes any open drawers that are not pinned.
- * It also toggles the display icons and manages the animation during the transition.
+ * Uses pure CSS class toggling to match SillyTavern's native drawer mechanism.
+ *
+ * IMPORTANT: Do NOT use jQuery's slideToggle() here. It sets an inline
+ * style="display: none" that overrides CSS class rules (.openDrawer { display: block }),
+ * permanently preventing the drawer from reopening via ST's doNavbarIconClick().
  */
-// TODO: The `openDrawer` style class appears nowhere else in this project.
-// TODO: Does Timelines need this to interact with the main parts of ST (which does use `openDrawer`), or is this actually a no-op?
-// This is currently called from:
-//   - The handler registered to `cy.ready` (`index.js`)
-//   - `onTimelineButtonClick` (`index.js`)
-//   - Upon returning from `navigateToMessage` (`tl_utils.js`)
 export function closeOpenDrawers() {
     var openDrawers = $('.openDrawer').not('.pinnedOpen');
-    var openIcons = $('.openIcon');
-    console.info(`[Timelines DEBUG] closeOpenDrawers() called: found ${openDrawers.length} openDrawer(s), ${openIcons.length} openIcon(s)`);
-    openDrawers.each(function(i) {
-        console.info(`[Timelines DEBUG]   openDrawer[${i}]: id=${this.id}, classes=${this.className}`);
-    });
-    openIcons.each(function(i) {
-        console.info(`[Timelines DEBUG]   openIcon[${i}]: id=${this.id}, classes=${this.className}`);
-    });
+    if (openDrawers.length === 0) return;
 
-    openDrawers.addClass('resizing').slideToggle(200, 'swing', function () {
-        $(this).closest('.drawer-content').removeClass('resizing');
-    });
-
-    $('.openIcon').toggleClass('closedIcon openIcon');
+    openDrawers.closest('.drawer').find('.drawer-icon.openIcon').toggleClass('closedIcon openIcon');
     openDrawers.toggleClass('closedDrawer openDrawer');
-    console.info('[Timelines DEBUG] closeOpenDrawers() done');
 }
 
-/**
- * Logs a diagnostic snapshot of timeline-related DOM elements still in the document.
- * Use this to debug leftover elements that may block the ST UI.
- *
- * @param {string} label - A label describing when this snapshot was taken.
- */
-export function logTimelinesDOMState(label) {
-    const tippyRoots = document.querySelectorAll('[data-tippy-root]');
-    const tippyBoxes = document.querySelectorAll('.tippy-box');
-    const modal = document.getElementById('timelinesModal');
-    const modalVisible = modal ? (modal.style.display !== 'none' && modal.offsetParent !== null) : false;
-    const modalParent = modal ? modal.parentElement?.className : 'N/A';
-
-    // Check for any high z-index elements that might overlay
-    const allFixed = document.querySelectorAll('[style*="position: fixed"], [style*="position:fixed"]');
-    const highZElements = [];
-    allFixed.forEach(el => {
-        const z = parseInt(window.getComputedStyle(el).zIndex);
-        if (z > 1000 && el.id !== 'timelinesModal') {
-            highZElements.push({ tag: el.tagName, id: el.id, class: el.className, zIndex: z, display: el.style.display });
-        }
-    });
-
-    console.info(`[Timelines DEBUG] === ${label} ===`);
-    console.info(`[Timelines DEBUG] Modal exists: ${!!modal}, visible: ${modalVisible}, parent: ${modalParent}`);
-    console.info(`[Timelines DEBUG] [data-tippy-root] elements in DOM: ${tippyRoots.length}`);
-    tippyRoots.forEach((root, i) => {
-        const box = root.querySelector('.tippy-box');
-        const state = box ? box.getAttribute('data-state') : 'N/A';
-        const rect = root.getBoundingClientRect();
-        const style = window.getComputedStyle(root);
-        console.info(`[Timelines DEBUG]   tippy-root[${i}]: state=${state}, visible=${state === 'visible'}, pointer-events=${style.pointerEvents}, rect=(${Math.round(rect.x)},${Math.round(rect.y)},${Math.round(rect.width)}x${Math.round(rect.height)}), has_tippy=${!!root._tippy}`);
-    });
-    if (highZElements.length > 0) {
-        console.info(`[Timelines DEBUG] High z-index fixed elements:`, highZElements);
-    }
-    console.info(`[Timelines DEBUG] === end ${label} ===`);
-}
 
 /**
  * Close the modal with ID "timelinesModal".
  * It ensures the modal is returned to its original position in the DOM when closed.
  */
 export function closeModal() {
-    console.info('[Timelines DEBUG] closeModal() called');
     let modal = document.getElementById('timelinesModal');
     if (!modal) {
         console.error('Modal not found!');
@@ -216,7 +163,6 @@ export function closeModal() {
     // Append the modal back to its original parent (to store it while closed)
     document.querySelector('.timelines-modal-storage').appendChild(modal);
     modal.style.display = 'none';
-    console.info('[Timelines DEBUG] closeModal() done');
 }
 
 /**
@@ -224,21 +170,17 @@ export function closeModal() {
  */
 export function closeTippy() {
     let tippyBoxes = document.querySelectorAll('.tippy-box');
-    console.info(`[Timelines DEBUG] closeTippy() called, found ${tippyBoxes.length} tippy-box elements`);
     tippyBoxes.forEach((box, i) => {
         let parent = box.parentElement;
         if (parent && parent._tippy) {  // `_tippy` is stored on the graph element
-            console.info(`[Timelines DEBUG]   tippy-box[${i}]: destroying via _tippy`);
             parent._tippy.destroy();
             parent._tippy = null;
         } else if (parent) {
             // Orphaned tippy DOM element (reference already nulled) — remove it
-            console.info(`[Timelines DEBUG]   tippy-box[${i}]: orphaned, removing parent from DOM`);
             parent.remove();
         }
     });
-    const remaining = document.querySelectorAll('[data-tippy-root]');
-    console.info(`[Timelines DEBUG] closeTippy() done, [data-tippy-root] remaining: ${remaining.length}`);
+    });
 }
 
 /**
@@ -262,11 +204,8 @@ export function handleModalDisplay() {
 
     // The "close" button
     closeBtn.onclick = function () {
-        console.info('[Timelines DEBUG] Close button clicked');
-        logTimelinesDOMState('close button BEFORE cleanup');
         closeModal();
         closeTippy();
-        logTimelinesDOMState('close button AFTER cleanup');
     };
 
     // When clicked outside
@@ -278,11 +217,8 @@ export function handleModalDisplay() {
     // See e.g. https://wesbos.com/javascript/06-serious-practice-exercises/click-outside-modal
     modal.onclick = function (event) {
         if (event.target == modal) {  // outer div itself clicked (as opposed to something inside it clicked)
-            console.info('[Timelines DEBUG] Clicked outside modal');
-            logTimelinesDOMState('click-outside BEFORE cleanup');
             closeModal();
             closeTippy();
-            logTimelinesDOMState('click-outside AFTER cleanup');
         }
     };
 
