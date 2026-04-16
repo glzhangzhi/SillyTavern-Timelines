@@ -180,7 +180,6 @@ export function closeTippy() {
             parent.remove();
         }
     });
-    });
 }
 
 /**
